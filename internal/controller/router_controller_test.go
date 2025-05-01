@@ -22,14 +22,15 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	servingv1alpha1 "production-stack/api/v1alpha1"
 )
 
-var _ = Describe("ProductionStack Controller", func() {
+var _ = Describe("Router Controller", func() {
 	Context("When reconciling a resource", func() {
 		const resourceName = "test-resource"
 
@@ -37,44 +38,47 @@ var _ = Describe("ProductionStack Controller", func() {
 
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
-			Namespace: "default",
+			Namespace: "default", // TODO(user):Modify as needed
 		}
-		productionStack := &servingv1alpha1.ProductionStack{}
+		router := &servingv1alpha1.Router{}
 
 		BeforeEach(func() {
-			By("creating the custom resource for the Kind ProductionStack")
-			err := k8sClient.Get(ctx, typeNamespacedName, productionStack)
+			By("creating the custom resource for the Kind Router")
+			err := k8sClient.Get(ctx, typeNamespacedName, router)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &servingv1alpha1.ProductionStack{
+				resource := &servingv1alpha1.Router{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
 					},
+					// TODO(user): Specify other spec details if needed.
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
 		})
 
 		AfterEach(func() {
-			resource := &servingv1alpha1.ProductionStack{}
+			// TODO(user): Cleanup logic after each test, like removing the resource instance.
+			resource := &servingv1alpha1.Router{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
-			By("cleanup the custom resource")
+			By("Cleanup the specific resource instance Router")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
-
 		It("should successfully reconcile the resource", func() {
-			By("reconciling the custom resource")
-			reconciler := &ProductionStackReconciler{
+			By("Reconciling the created resource")
+			controllerReconciler := &RouterReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
 			}
 
-			_, err := reconciler.Reconcile(ctx, reconcile.Request{
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
+			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
+			// Example: If you expect a certain status condition after reconciliation, verify it here.
 		})
 	})
 })

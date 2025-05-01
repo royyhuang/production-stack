@@ -9,6 +9,7 @@ rules:
   resources:
   - configmaps
   - secrets
+  - services
   verbs:
   - create
   - delete
@@ -21,7 +22,6 @@ rules:
   - ""
   resources:
   - pods
-  - services
   verbs:
   - get
   - list
@@ -67,7 +67,8 @@ rules:
 - apiGroups:
   - serving.vllm.ai
   resources:
-  - productionstacks
+  - routers
+  - vllmruntimes
   verbs:
   - create
   - delete
@@ -79,13 +80,15 @@ rules:
 - apiGroups:
   - serving.vllm.ai
   resources:
-  - productionstacks/finalizers
+  - routers/finalizers
+  - vllmruntimes/finalizers
   verbs:
   - update
 - apiGroups:
   - serving.vllm.ai
   resources:
-  - productionstacks/status
+  - routers/status
+  - vllmruntimes/status
   verbs:
   - get
   - patch

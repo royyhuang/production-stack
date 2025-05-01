@@ -202,11 +202,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controller.ProductionStackReconciler{
+	if err = (&controller.RouterReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "ProductionStack")
+		setupLog.Error(err, "unable to create controller", "controller", "Router")
+		os.Exit(1)
+	}
+
+	if err = (&controller.VLLMRuntimeReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "VLLMRuntime")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
