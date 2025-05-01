@@ -281,31 +281,29 @@ func (r *ProductionStackReconciler) deploymentForProductionStack(ps *servingv1al
 	}
 
 	// Get the image from VLLMConfig or use default
-	image := ps.Spec.VLLMConfig.ImagePullRegistry + "/" + ps.Spec.VLLMConfig.Image
+	image := ps.Spec.VLLMConfig.Image.Registry + "/" + ps.Spec.VLLMConfig.Image.Name
 
 	// Get the image pull policy
 	imagePullPolicy := corev1.PullIfNotPresent
-	if ps.Spec.VLLMConfig.ImagePullPolicy != "" {
-		imagePullPolicy = corev1.PullPolicy(ps.Spec.VLLMConfig.ImagePullPolicy)
+	if ps.Spec.VLLMConfig.Image.PullPolicy != "" {
+		imagePullPolicy = corev1.PullPolicy(ps.Spec.VLLMConfig.Image.PullPolicy)
 	}
 
 	// Build image pull secrets
 	var imagePullSecrets []corev1.LocalObjectReference
-	if ps.Spec.VLLMConfig.ImagePullSecretName != "" {
+	if ps.Spec.VLLMConfig.Image.PullSecretName != "" {
 		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{
-			Name: ps.Spec.VLLMConfig.ImagePullSecretName,
+			Name: ps.Spec.VLLMConfig.Image.PullSecretName,
 		})
 	}
 
-	if ps.Spec.VLLMConfig.HFTokenSecretName != "" {
+	if ps.Spec.VLLMConfig.HFTokenSecret.Name != "" {
 		env = append(env, corev1.EnvVar{
 			Name: "HF_TOKEN",
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: ps.Spec.VLLMConfig.HFTokenSecretName,
-					},
-					Key: "token",
+					LocalObjectReference: ps.Spec.VLLMConfig.HFTokenSecret,
+					Key:                  "token",
 				},
 			},
 		})

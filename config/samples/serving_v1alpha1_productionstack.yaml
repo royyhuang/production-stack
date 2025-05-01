@@ -24,7 +24,8 @@ spec:
     imagePullRegistry: "docker.io"  # Optional: default is docker.io
     imagePullPolicy: "IfNotPresent"  # Optional: Always, IfNotPresent, or Never
     imagePullSecretName: ""  # Optional: secret for pulling images
-    hfTokenSecretName: "huggingface-token"  # Optional: secret for Hugging Face token
+    hfTokenSecret:
+      name: "huggingface-token"  # Optional: secret for Hugging Face token
     enableChunkedPrefill: false  # Optional: enable chunked prefill
     enablePrefixCaching: false  # Optional: enable prefix caching
     tensorParallelSize: 1  # Optional: number of GPUs for tensor parallelism

@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -115,24 +116,8 @@ type EnvVar struct {
 
 // VLLMConfig defines the vLLM-specific configuration
 type VLLMConfig struct {
-	// Image is the Docker image to use for vLLM
-	// +kubebuilder:default="vllm/vllm-openai:latest"
-	Image string `json:"image,omitempty"`
-
-	// ImagePullRegistry is the registry to use for pulling the image
-	// +kubebuilder:default="docker.io"
-	ImagePullRegistry string `json:"imagePullRegistry,omitempty"`
-
-	// ImagePullPolicy is the policy for pulling the image
-	// +kubebuilder:validation:Enum=Always;IfNotPresent;Never
-	// +kubebuilder:default=IfNotPresent
-	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`
-
-	// ImagePullSecretName is the name of the secret to use for pulling the image
-	ImagePullSecretName string `json:"imagePullSecretName,omitempty"`
-
-	// HFTokenSecretName is the name of the secret to use for pulling the image from Hugging Face
-	HFTokenSecretName string `json:"hfTokenSecretName,omitempty"`
+	// Image defines the image configuration
+	Image Image `json:"image,omitempty"`
 
 	// EnableChunkedPrefill enables chunked prefill
 	EnableChunkedPrefill bool `json:"enableChunkedPrefill,omitempty"`
@@ -150,11 +135,33 @@ type VLLMConfig struct {
 	// MaxLoras is the maximum number of LoRAs to support
 	MaxLoras int32 `json:"maxLoras,omitempty"`
 
+	// HFTokenSecretName is the name of the secret to use for pulling the image from Hugging Face
+	HFTokenSecret corev1.LocalObjectReference `json:"hfTokenSecret,omitempty"`
+
 	// ExtraArgs are additional command-line arguments to pass to vLLM
 	ExtraArgs []string `json:"extraArgs,omitempty"`
 
 	// V1 enables v1 compatibility mode
 	V1 bool `json:"v1,omitempty"`
+}
+
+// Image defines the image configuration
+type Image struct {
+	// Name is the Docker image to use
+	// +kubebuilder:default="vllm/vllm-openai:latest"
+	Name string `json:"name,omitempty"`
+
+	// Registry is the registry to use for pulling the image
+	// +kubebuilder:default="docker.io"
+	Registry string `json:"registry,omitempty"`
+
+	// PullPolicy is the policy for pulling the image
+	// +kubebuilder:validation:Enum=Always;IfNotPresent;Never
+	// +kubebuilder:default=IfNotPresent
+	PullPolicy string `json:"pullPolicy,omitempty"`
+
+	// PullSecretName is the name of the secret to use for pulling the image
+	PullSecretName string `json:"pullSecretName,omitempty"`
 }
 
 // LMCacheConfig defines the LM Cache configuration
@@ -183,21 +190,6 @@ type RouterConfig struct {
 	// +kubebuilder:validation:Enum=roundrobin;session
 	// +kubebuilder:default=roundrobin
 	RouterType string `json:"routerType,omitempty"`
-}
-
-// ConfigMapReference defines a reference to a ConfigMap
-type ConfigMapReference struct {
-	// Name is the name of the ConfigMap
-	Name string `json:"name"`
-
-	// Optional indicates whether the ConfigMap is optional
-	Optional bool `json:"optional,omitempty"`
-}
-
-// ImagePullSecret defines a secret to use for pulling images
-type ImagePullSecret struct {
-	// Name is the name of the secret
-	Name string `json:"name"`
 }
 
 // ProductionStackStatus defines the observed state of ProductionStack.

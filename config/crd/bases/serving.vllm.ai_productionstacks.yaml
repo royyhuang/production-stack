@@ -186,31 +186,46 @@ spec:
                       (0.0 to 1.0)
                     pattern: ^0(\.[0-9]+)?|1(\.0+)?$
                     type: string
-                  hfTokenSecretName:
+                  hfTokenSecret:
                     description: HFTokenSecretName is the name of the secret to use
                       for pulling the image from Hugging Face
-                    type: string
+                    properties:
+                      name:
+                        default: ""
+                        description: |-
+                          Name of the referent.
+                          This field is effectively required, but due to backwards compatibility is
+                          allowed to be empty. Instances of this type with an empty value here are
+                          almost certainly wrong.
+                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                        type: string
+                    type: object
+                    x-kubernetes-map-type: atomic
                   image:
-                    default: vllm/vllm-openai:latest
-                    description: Image is the Docker image to use for vLLM
-                    type: string
-                  imagePullPolicy:
-                    default: IfNotPresent
-                    description: ImagePullPolicy is the policy for pulling the image
-                    enum:
-                    - Always
-                    - IfNotPresent
-                    - Never
-                    type: string
-                  imagePullRegistry:
-                    default: docker.io
-                    description: ImagePullRegistry is the registry to use for pulling
-                      the image
-                    type: string
-                  imagePullSecretName:
-                    description: ImagePullSecretName is the name of the secret to
-                      use for pulling the image
-                    type: string
+                    description: Image defines the image configuration
+                    properties:
+                      name:
+                        default: vllm/vllm-openai:latest
+                        description: Name is the Docker image to use
+                        type: string
+                      pullPolicy:
+                        default: IfNotPresent
+                        description: PullPolicy is the policy for pulling the image
+                        enum:
+                        - Always
+                        - IfNotPresent
+                        - Never
+                        type: string
+                      pullSecretName:
+                        description: PullSecretName is the name of the secret to use
+                          for pulling the image
+                        type: string
+                      registry:
+                        default: docker.io
+                        description: Registry is the registry to use for pulling the
+                          image
+                        type: string
+                    type: object
                   maxLoras:
                     description: MaxLoras is the maximum number of LoRAs to support
                     format: int32
