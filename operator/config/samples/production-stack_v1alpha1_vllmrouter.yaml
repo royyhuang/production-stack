@@ -59,7 +59,8 @@ spec:
           values:
             - linux
 
-  # Minimal ingress configuration
+  # Ingress will be created automatically with default configuration
+  # (path: "/", pathType: "Prefix") when enableRouter is true
   ingress:
     enabled: true
     className: "nginx"

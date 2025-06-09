@@ -152,7 +152,11 @@ func (r *VLLMRouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	// Create Ingress if enabled and it doesn't exist
-	if router.Spec.Ingress != nil && router.Spec.Ingress.Enabled {
+	// Create ingress if router is enabled (either explicitly enabled or default when enableRouter is true)
+	shouldCreateIngress := (router.Spec.Ingress != nil && router.Spec.Ingress.Enabled) ||
+		(router.Spec.Ingress == nil && router.Spec.EnableRouter)
+
+	if shouldCreateIngress {
 		foundIngress := &networkingv1.Ingress{}
 		err = r.Get(ctx, types.NamespacedName{Name: router.Name, Namespace: router.Namespace}, foundIngress)
 		if err != nil && errors.IsNotFound(err) {
@@ -543,7 +547,7 @@ func (r *VLLMRouterReconciler) ingressForVLLMRouter(router *servingv1alpha1.VLLM
 	var rules []networkingv1.IngressRule
 
 	// Handle hosts configuration
-	if len(router.Spec.Ingress.Hosts) > 0 {
+	if router.Spec.Ingress != nil && len(router.Spec.Ingress.Hosts) > 0 {
 		for _, host := range router.Spec.Ingress.Hosts {
 			var paths []networkingv1.HTTPIngressPath
 			for _, path := range host.Paths {
@@ -574,7 +578,7 @@ func (r *VLLMRouterReconciler) ingressForVLLMRouter(router *servingv1alpha1.VLLM
 				},
 			})
 		}
-	} else if len(router.Spec.Ingress.Paths) > 0 {
+	} else if router.Spec.Ingress != nil && len(router.Spec.Ingress.Paths) > 0 {
 		// Handle paths-only configuration (no hosts)
 		var paths []networkingv1.HTTPIngressPath
 		for _, path := range router.Spec.Ingress.Paths {
@@ -604,15 +608,43 @@ func (r *VLLMRouterReconciler) ingressForVLLMRouter(router *servingv1alpha1.VLLM
 				},
 			},
 		})
+	} else {
+		// Default configuration when no ingress spec is provided
+		pathType := networkingv1.PathTypePrefix
+		paths := []networkingv1.HTTPIngressPath{
+			{
+				Path:     "/",
+				PathType: &pathType,
+				Backend: networkingv1.IngressBackend{
+					Service: &networkingv1.IngressServiceBackend{
+						Name: router.Name,
+						Port: networkingv1.ServiceBackendPort{
+							Number: 80,
+						},
+					},
+				},
+			},
+		}
+
+		// Create a default rule without host
+		rules = append(rules, networkingv1.IngressRule{
+			IngressRuleValue: networkingv1.IngressRuleValue{
+				HTTP: &networkingv1.HTTPIngressRuleValue{
+					Paths: paths,
+				},
+			},
+		})
 	}
 
 	// Build TLS configuration
 	var tls []networkingv1.IngressTLS
-	for _, tlsConfig := range router.Spec.Ingress.TLS {
-		tls = append(tls, networkingv1.IngressTLS{
-			Hosts:      tlsConfig.Hosts,
-			SecretName: tlsConfig.SecretName,
-		})
+	if router.Spec.Ingress != nil {
+		for _, tlsConfig := range router.Spec.Ingress.TLS {
+			tls = append(tls, networkingv1.IngressTLS{
+				Hosts:      tlsConfig.Hosts,
+				SecretName: tlsConfig.SecretName,
+			})
+		}
 	}
 
 	ingress := &networkingv1.Ingress{
@@ -628,12 +660,12 @@ func (r *VLLMRouterReconciler) ingressForVLLMRouter(router *servingv1alpha1.VLLM
 	}
 
 	// Add annotations if specified
-	if router.Spec.Ingress.Annotations != nil {
+	if router.Spec.Ingress != nil && router.Spec.Ingress.Annotations != nil {
 		ingress.Annotations = router.Spec.Ingress.Annotations
 	}
 
 	// Add ingress class name if specified
-	if router.Spec.Ingress.ClassName != "" {
+	if router.Spec.Ingress != nil && router.Spec.Ingress.ClassName != "" {
 		ingress.Spec.IngressClassName = &router.Spec.Ingress.ClassName
 	}
 
