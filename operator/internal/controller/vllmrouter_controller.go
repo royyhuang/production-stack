@@ -23,6 +23,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -55,6 +56,7 @@ type VLLMRouterReconciler struct {
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -149,6 +151,27 @@ func (r *VLLMRouterReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
+	// Create Ingress if enabled and it doesn't exist
+	if router.Spec.Ingress != nil && router.Spec.Ingress.Enabled {
+		foundIngress := &networkingv1.Ingress{}
+		err = r.Get(ctx, types.NamespacedName{Name: router.Name, Namespace: router.Namespace}, foundIngress)
+		if err != nil && errors.IsNotFound(err) {
+			// Define a new ingress
+			ingress := r.ingressForVLLMRouter(router)
+			log.Info("Creating a new Ingress", "Ingress.Namespace", ingress.Namespace, "Ingress.Name", ingress.Name)
+			err = r.Create(ctx, ingress)
+			if err != nil {
+				log.Error(err, "Failed to create new Ingress", "Ingress.Namespace", ingress.Namespace, "Ingress.Name", ingress.Name)
+				return ctrl.Result{}, err
+			}
+			// Ingress created successfully - return and requeue
+			return ctrl.Result{Requeue: true}, nil
+		} else if err != nil {
+			log.Error(err, "Failed to get Ingress")
+			return ctrl.Result{}, err
+		}
+	}
+
 	// Check if the deployment already exists, if not create a new one
 	found := &appsv1.Deployment{}
 	err = r.Get(ctx, types.NamespacedName{Name: router.Name, Namespace: router.Namespace}, found)
@@ -240,6 +263,11 @@ func (r *VLLMRouterReconciler) deploymentForVLLMRouter(router *servingv1alpha1.V
 
 	// Get the image from Image spec or use default
 	image := router.Spec.Image.Registry + "/" + router.Spec.Image.Name
+	if router.Spec.Image.Tag != "" {
+		image = image + ":" + router.Spec.Image.Tag
+	} else {
+		image = image + ":latest"
+	}
 
 	// Get the image pull policy
 	imagePullPolicy := corev1.PullIfNotPresent
@@ -505,11 +533,121 @@ func (r *VLLMRouterReconciler) roleBindingForVLLMRouter(router *servingv1alpha1.
 	return roleBinding
 }
 
+// ingressForVLLMRouter returns a VLLMRouter Ingress object
+func (r *VLLMRouterReconciler) ingressForVLLMRouter(router *servingv1alpha1.VLLMRouter) *networkingv1.Ingress {
+	labels := map[string]string{
+		"app": router.Name,
+	}
+
+	// Build ingress rules
+	var rules []networkingv1.IngressRule
+
+	// Handle hosts configuration
+	if len(router.Spec.Ingress.Hosts) > 0 {
+		for _, host := range router.Spec.Ingress.Hosts {
+			var paths []networkingv1.HTTPIngressPath
+			for _, path := range host.Paths {
+				pathType := networkingv1.PathType(path.PathType)
+				if pathType == "" {
+					pathType = networkingv1.PathTypePrefix
+				}
+				paths = append(paths, networkingv1.HTTPIngressPath{
+					Path:     path.Path,
+					PathType: &pathType,
+					Backend: networkingv1.IngressBackend{
+						Service: &networkingv1.IngressServiceBackend{
+							Name: router.Name,
+							Port: networkingv1.ServiceBackendPort{
+								Number: 80,
+							},
+						},
+					},
+				})
+			}
+
+			rules = append(rules, networkingv1.IngressRule{
+				Host: host.Host,
+				IngressRuleValue: networkingv1.IngressRuleValue{
+					HTTP: &networkingv1.HTTPIngressRuleValue{
+						Paths: paths,
+					},
+				},
+			})
+		}
+	} else if len(router.Spec.Ingress.Paths) > 0 {
+		// Handle paths-only configuration (no hosts)
+		var paths []networkingv1.HTTPIngressPath
+		for _, path := range router.Spec.Ingress.Paths {
+			pathType := networkingv1.PathType(path.PathType)
+			if pathType == "" {
+				pathType = networkingv1.PathTypePrefix
+			}
+			paths = append(paths, networkingv1.HTTPIngressPath{
+				Path:     path.Path,
+				PathType: &pathType,
+				Backend: networkingv1.IngressBackend{
+					Service: &networkingv1.IngressServiceBackend{
+						Name: router.Name,
+						Port: networkingv1.ServiceBackendPort{
+							Number: 80,
+						},
+					},
+				},
+			})
+		}
+
+		// Create a default rule without host
+		rules = append(rules, networkingv1.IngressRule{
+			IngressRuleValue: networkingv1.IngressRuleValue{
+				HTTP: &networkingv1.HTTPIngressRuleValue{
+					Paths: paths,
+				},
+			},
+		})
+	}
+
+	// Build TLS configuration
+	var tls []networkingv1.IngressTLS
+	for _, tlsConfig := range router.Spec.Ingress.TLS {
+		tls = append(tls, networkingv1.IngressTLS{
+			Hosts:      tlsConfig.Hosts,
+			SecretName: tlsConfig.SecretName,
+		})
+	}
+
+	ingress := &networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      router.Name,
+			Namespace: router.Namespace,
+			Labels:    labels,
+		},
+		Spec: networkingv1.IngressSpec{
+			Rules: rules,
+			TLS:   tls,
+		},
+	}
+
+	// Add annotations if specified
+	if router.Spec.Ingress.Annotations != nil {
+		ingress.Annotations = router.Spec.Ingress.Annotations
+	}
+
+	// Add ingress class name if specified
+	if router.Spec.Ingress.ClassName != "" {
+		ingress.Spec.IngressClassName = &router.Spec.Ingress.ClassName
+	}
+
+	// Set the owner reference
+	ctrl.SetControllerReference(router, ingress, r.Scheme)
+	return ingress
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *VLLMRouterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&servingv1alpha1.VLLMRouter{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
+		Owns(&networkingv1.Ingress{}).
 		Complete(r)
 }

@@ -64,6 +64,8 @@ spec:
                     type: string
                   registry:
                     type: string
+                  tag:
+                    type: string
                 required:
                 - name
                 - registry

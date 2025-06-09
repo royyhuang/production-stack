@@ -27,6 +27,7 @@ type ResourceRequirements struct {
 type ImageSpec struct {
 	Registry       string `json:"registry"`
 	Name           string `json:"name"`
+	Tag            string `json:"tag,omitempty"`
 	PullPolicy     string `json:"pullPolicy,omitempty"`
 	PullSecretName string `json:"pullSecretName,omitempty"`
 }

@@ -77,9 +77,100 @@ spec:
                     type: string
                   registry:
                     type: string
+                  tag:
+                    type: string
                 required:
                 - name
                 - registry
+                type: object
+              ingress:
+                description: Ingress configuration
+                properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    description: Annotations for the ingress resource
+                    type: object
+                  className:
+                    description: IngressClassName specifies the ingress class to use
+                    type: string
+                  enabled:
+                    default: false
+                    description: Enable ingress
+                    type: boolean
+                  hosts:
+                    description: Hosts configuration
+                    items:
+                      description: IngressHost defines the host configuration for
+                        ingress
+                      properties:
+                        host:
+                          description: Host name
+                          type: string
+                        paths:
+                          description: Paths configuration
+                          items:
+                            description: IngressPath defines the path configuration
+                              for ingress
+                            properties:
+                              path:
+                                description: Path for the ingress rule
+                                type: string
+                              pathType:
+                                default: Prefix
+                                description: PathType for the ingress rule
+                                enum:
+                                - Exact
+                                - Prefix
+                                - ImplementationSpecific
+                                type: string
+                            required:
+                            - path
+                            type: object
+                          type: array
+                      required:
+                      - host
+                      - paths
+                      type: object
+                    type: array
+                  paths:
+                    description: Paths configuration (used when no hosts are specified)
+                    items:
+                      description: IngressPath defines the path configuration for
+                        ingress
+                      properties:
+                        path:
+                          description: Path for the ingress rule
+                          type: string
+                        pathType:
+                          default: Prefix
+                          description: PathType for the ingress rule
+                          enum:
+                          - Exact
+                          - Prefix
+                          - ImplementationSpecific
+                          type: string
+                      required:
+                      - path
+                      type: object
+                    type: array
+                  tls:
+                    description: TLS configuration
+                    items:
+                      description: IngressTLS defines the TLS configuration for ingress
+                      properties:
+                        hosts:
+                          description: Hosts for TLS configuration
+                          items:
+                            type: string
+                          type: array
+                        secretName:
+                          description: SecretName for TLS certificate
+                          type: string
+                      required:
+                      - secretName
+                      type: object
+                    type: array
                 type: object
               k8sLabelSelector:
                 description: K8sLabelSelector specifies the label selector for vLLM

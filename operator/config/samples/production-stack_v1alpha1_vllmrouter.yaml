@@ -58,3 +58,11 @@ spec:
           operator: In
           values:
             - linux
+
+  # Minimal ingress configuration
+  ingress:
+    enabled: true
+    className: "nginx"
+    paths:
+      - path: "/"
+        pathType: "Prefix"

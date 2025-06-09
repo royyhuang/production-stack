@@ -163,11 +163,11 @@ func (r *VLLMRuntimeReconciler) deploymentForVLLMRuntime(vllmRuntime *production
 				Scheme: corev1.URISchemeHTTP,
 			},
 		},
-		InitialDelaySeconds: 30,
+		InitialDelaySeconds: 120,
 		PeriodSeconds:       20,
-		TimeoutSeconds:      5,
+		TimeoutSeconds:      10,
 		SuccessThreshold:    1,
-		FailureThreshold:    10,
+		FailureThreshold:    20,
 	}
 
 	livenessProbe := &corev1.Probe{
@@ -178,11 +178,11 @@ func (r *VLLMRuntimeReconciler) deploymentForVLLMRuntime(vllmRuntime *production
 				Scheme: corev1.URISchemeHTTP,
 			},
 		},
-		InitialDelaySeconds: 240,
-		PeriodSeconds:       10,
+		InitialDelaySeconds: 360,
+		PeriodSeconds:       20,
 		TimeoutSeconds:      3,
 		SuccessThreshold:    1,
-		FailureThreshold:    3,
+		FailureThreshold:    10,
 	}
 
 	// Build command line arguments

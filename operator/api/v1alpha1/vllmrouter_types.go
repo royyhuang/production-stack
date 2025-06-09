@@ -92,6 +92,9 @@ type VLLMRouterSpec struct {
 	// VLLM API Key configuration
 	VLLMApiKeySecret corev1.LocalObjectReference `json:"vllmApiKeySecret,omitempty"`
 	VLLMApiKeyName   string                      `json:"vllmApiKeyName,omitempty"`
+
+	// Ingress configuration
+	Ingress *IngressSpec `json:"ingress,omitempty"`
 }
 
 // VLLMRouterStatus defines the observed state of VLLMRouter
@@ -125,6 +128,57 @@ type VLLMRouterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []VLLMRouter `json:"items"`
+}
+
+// IngressHost defines the host configuration for ingress
+type IngressHost struct {
+	// Host name
+	Host string `json:"host"`
+
+	// Paths configuration
+	Paths []IngressPath `json:"paths"`
+}
+
+// IngressPath defines the path configuration for ingress
+type IngressPath struct {
+	// Path for the ingress rule
+	Path string `json:"path"`
+
+	// PathType for the ingress rule
+	// +kubebuilder:validation:Enum=Exact;Prefix;ImplementationSpecific
+	// +kubebuilder:default=Prefix
+	PathType string `json:"pathType,omitempty"`
+}
+
+// IngressTLS defines the TLS configuration for ingress
+type IngressTLS struct {
+	// SecretName for TLS certificate
+	SecretName string `json:"secretName"`
+
+	// Hosts for TLS configuration
+	Hosts []string `json:"hosts,omitempty"`
+}
+
+// IngressSpec defines the ingress configuration for the VLLMRouter
+type IngressSpec struct {
+	// Enable ingress
+	// +kubebuilder:default=false
+	Enabled bool `json:"enabled,omitempty"`
+
+	// IngressClassName specifies the ingress class to use
+	ClassName string `json:"className,omitempty"`
+
+	// Annotations for the ingress resource
+	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// Hosts configuration
+	Hosts []IngressHost `json:"hosts,omitempty"`
+
+	// Paths configuration (used when no hosts are specified)
+	Paths []IngressPath `json:"paths,omitempty"`
+
+	// TLS configuration
+	TLS []IngressTLS `json:"tls,omitempty"`
 }
 
 func init() {
