@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # Main operator resources with namePrefix transformation
+  - ../../default
+  # Ingress controller without namePrefix transformation
+  - ../ingress
+# This overlay combines both the operator and ingress controller
+# The main operator resources will have the production-stack- prefix
+# The ingress controller will keep its original names to avoid namespace conflicts
