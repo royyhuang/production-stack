@@ -6,6 +6,8 @@ resources:
   - ../../default
   # Ingress controller without namePrefix transformation
   - ../ingress
+  # Prometheus and Grafana resources
+  - ../prometheus
 # This overlay combines both the operator and ingress controller
 # The main operator resources will have the production-stack- prefix
 # The ingress controller will keep its original names to avoid namespace conflicts
