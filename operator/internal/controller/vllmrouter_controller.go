@@ -443,6 +443,11 @@ func (r *VLLMRouterReconciler) updateStatus(ctx context.Context, router *serving
 // serviceForVLLMRouter returns a VLLMRouter Service object
 func (r *VLLMRouterReconciler) serviceForVLLMRouter(router *servingv1alpha1.VLLMRouter) *corev1.Service {
 	labels := map[string]string{
+		"app":         router.Name,
+		"environment": "grafana-monitoring",
+	}
+
+	selector := map[string]string{
 		"app": router.Name,
 	}
 
@@ -450,10 +455,11 @@ func (r *VLLMRouterReconciler) serviceForVLLMRouter(router *servingv1alpha1.VLLM
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      router.Name,
 			Namespace: router.Namespace,
+			Labels:    labels,
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
-			Selector: labels,
+			Selector: selector,
 			Ports: []corev1.ServicePort{
 				{
 					Name:       "http",

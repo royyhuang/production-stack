@@ -547,6 +547,11 @@ func (r *VLLMRuntimeReconciler) updateStatus(ctx context.Context, vr *production
 // serviceForVLLMRuntime returns a VLLMRuntime Service object
 func (r *VLLMRuntimeReconciler) serviceForVLLMRuntime(vllmRuntime *productionstackv1alpha1.VLLMRuntime) *corev1.Service {
 	labels := map[string]string{
+		"app":         vllmRuntime.Name,
+		"environment": "grafana-monitoring",
+	}
+
+	selector := map[string]string{
 		"app": vllmRuntime.Name,
 	}
 
@@ -554,10 +559,11 @@ func (r *VLLMRuntimeReconciler) serviceForVLLMRuntime(vllmRuntime *productionsta
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      vllmRuntime.Name,
 			Namespace: vllmRuntime.Namespace,
+			Labels:    labels,
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
-			Selector: labels,
+			Selector: selector,
 			Ports: []corev1.ServicePort{
 				{
 					Name:       "http",
