@@ -3,5 +3,7 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
+  - lmcache-dashboard-cm.yaml
   - prometheus-crds.yaml
   - prometheus-adapter-v1.yaml
+  - grafana-ingress.yaml
