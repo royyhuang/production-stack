@@ -40,6 +40,35 @@ type DeploymentConfig struct {
 
 	// Image configuration
 	Image ImageSpec `json:"image"`
+
+	// PVC configuration
+	PVC PVCConfig `json:"pvc,omitempty"`
+
+	// Host path configuration
+	HostPath *HostPathConfig `json:"hostPath,omitempty"`
+}
+
+// HostPathConfig defines the host path volume configuration
+type HostPathConfig struct {
+	// Path on the host machine
+	Path string `json:"path"`
+
+	// Type of the host path
+	// +kubebuilder:validation:Enum=Directory;DirectoryOrCreate;File;FileOrCreate;Socket;CharDevice;BlockDevice
+	// +kubebuilder:default=Directory
+	Type string `json:"type,omitempty"`
+
+	// Mount path inside the container
+	MountPath string `json:"mountPath"`
+}
+
+// VolumeMount defines a volume mount configuration
+type VolumeMount struct {
+	// Name of the volume to mount
+	Name string `json:"name"`
+
+	// Mount path inside the container
+	MountPath string `json:"mountPath"`
 }
 
 // VLLMRuntimeSpec defines the desired state of VLLMRuntime
@@ -55,6 +84,21 @@ type VLLMRuntimeSpec struct {
 
 	// Deployment configuration
 	DeploymentConfig DeploymentConfig `json:"deploymentConfig"`
+}
+
+// PVCConfig defines the persistent volume claim configuration
+type PVCConfig struct {
+	// Storage size for the PVC
+	// +kubebuilder:default="10Gi"
+	Size string `json:"size,omitempty"`
+
+	// Storage class name for the PVC
+	StorageClassName string `json:"storageClassName,omitempty"`
+
+	// Access mode for the PVC
+	// +kubebuilder:validation:Enum=ReadWriteOnce;ReadOnlyMany;ReadWriteMany
+	// +kubebuilder:default=ReadWriteOnce
+	AccessMode string `json:"accessMode,omitempty"`
 }
 
 // VLLMConfig defines the vLLM server configuration

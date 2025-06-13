@@ -50,6 +50,7 @@ type VLLMRuntimeReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -71,6 +72,41 @@ func (r *VLLMRuntimeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
+	// Check if the PVC already exists, if not create a new one
+	if vllmRuntime.Spec.DeploymentConfig.PVC.Size != "" {
+		foundPVC := &corev1.PersistentVolumeClaim{}
+		err = r.Get(ctx, types.NamespacedName{Name: vllmRuntime.Name, Namespace: vllmRuntime.Namespace}, foundPVC)
+		if err != nil && errors.IsNotFound(err) {
+			// Define a new PVC
+			pvc := r.pvcForVLLMRuntime(vllmRuntime)
+			log.Info("Creating a new PVC", "PVC.Namespace", pvc.Namespace, "PVC.Name", pvc.Name)
+			err = r.Create(ctx, pvc)
+			if err != nil {
+				log.Error(err, "Failed to create new PVC", "PVC.Namespace", pvc.Namespace, "PVC.Name", pvc.Name)
+				return ctrl.Result{}, err
+			}
+			// PVC created successfully - return and requeue
+			return ctrl.Result{Requeue: true}, nil
+		} else if err != nil {
+			log.Error(err, "Failed to get PVC")
+			return ctrl.Result{}, err
+		}
+
+		// Update the PVC if needed
+		if r.pvcNeedsUpdate(foundPVC, vllmRuntime) {
+			log.Info("Updating PVC", "PVC.Namespace", foundPVC.Namespace, "PVC.Name", foundPVC.Name)
+			// Create new PVC spec
+			newPVC := r.pvcForVLLMRuntime(vllmRuntime)
+
+			err = r.Update(ctx, newPVC)
+			if err != nil {
+				log.Error(err, "Failed to update PVC", "PVC.Namespace", foundPVC.Namespace, "PVC.Name", foundPVC.Name)
+				return ctrl.Result{}, err
+			}
+			// PVC updated successfully - return and requeue
+			return ctrl.Result{Requeue: true}, nil
+		}
+	}
 	// Check if the service already exists, if not create a new one
 	foundService := &corev1.Service{}
 	err = r.Get(ctx, types.NamespacedName{Name: vllmRuntime.Name, Namespace: vllmRuntime.Namespace}, foundService)
@@ -430,6 +466,62 @@ func (r *VLLMRuntimeReconciler) deploymentForVLLMRuntime(vllmRuntime *production
 			},
 		},
 	}
+	// Add PVC volume mount if PVC is configured
+	if vllmRuntime.Spec.DeploymentConfig.PVC.Size != "" {
+		// Add volume to pod spec
+		dep.Spec.Template.Spec.Volumes = []corev1.Volume{
+			{
+				Name: "model-storage",
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: vllmRuntime.Name,
+					},
+				},
+			},
+		}
+
+		// Add volume mount to container
+		dep.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
+			{
+				Name:      "model-storage",
+				MountPath: "/data",
+			},
+		}
+	}
+
+	// Add host path volume if configured
+	if vllmRuntime.Spec.DeploymentConfig.HostPath != nil {
+		hostPathType := corev1.HostPathType(vllmRuntime.Spec.DeploymentConfig.HostPath.Type)
+
+		// Initialize volumes slice if it doesn't exist
+		if dep.Spec.Template.Spec.Volumes == nil {
+			dep.Spec.Template.Spec.Volumes = []corev1.Volume{}
+		}
+
+		// Add host path volume
+		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, corev1.Volume{
+			Name: "host-path-volume",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: vllmRuntime.Spec.DeploymentConfig.HostPath.Path,
+					Type: &hostPathType,
+				},
+			},
+		})
+
+		// Initialize volume mounts slice if it doesn't exist
+		if dep.Spec.Template.Spec.Containers[0].VolumeMounts == nil {
+			dep.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{}
+		}
+
+		// Add host path volume mount
+		dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+			Name:      "host-path-volume",
+			MountPath: vllmRuntime.Spec.DeploymentConfig.HostPath.MountPath,
+			ReadOnly:  false,
+		})
+
+	}
 
 	// Set the owner reference
 	ctrl.SetControllerReference(vllmRuntime, dep, r.Scheme)
@@ -513,7 +605,44 @@ func (r *VLLMRuntimeReconciler) deploymentNeedsUpdate(ctx context.Context, dep *
 		return true
 	}
 
+	// Compare host path configuration
+	expectedHostPath := vr.Spec.DeploymentConfig.HostPath
+	actualHostPath := findHostPathVolume(ctx, dep.Spec.Template.Spec.Volumes, dep.Spec.Template.Spec.Containers[0].VolumeMounts)
+	if !reflect.DeepEqual(expectedHostPath, actualHostPath) {
+		log.Info("Host path configuration mismatch", "expected", expectedHostPath, "actual", actualHostPath)
+		return true
+	}
+
 	return false
+}
+
+// findHostPathVolume extracts host path configuration from volumes and volume mounts
+func findHostPathVolume(ctx context.Context, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) *productionstackv1alpha1.HostPathConfig {
+	log := log.FromContext(ctx)
+	for _, volume := range volumes {
+		if volume.HostPath != nil {
+			hostPathType := ""
+			if volume.HostPath.Type != nil {
+				hostPathType = string(*volume.HostPath.Type)
+			}
+
+			// Find the corresponding volume mount
+			var mountPath string
+			for _, mount := range volumeMounts {
+				if mount.Name == volume.Name {
+					mountPath = mount.MountPath
+					break
+				}
+			}
+			log.Info("Host path configuration", "path", volume.HostPath.Path, "type", hostPathType, "mountPath", mountPath)
+			return &productionstackv1alpha1.HostPathConfig{
+				Path:      volume.HostPath.Path,
+				Type:      hostPathType,
+				MountPath: mountPath,
+			}
+		}
+	}
+	return nil
 }
 
 // updateStatus updates the status of the VLLMRuntime
@@ -592,11 +721,74 @@ func (r *VLLMRuntimeReconciler) serviceNeedsUpdate(svc *corev1.Service, vr *prod
 	return false
 }
 
+// pvcForVLLMRuntime returns a VLLMRuntime PVC object
+func (r *VLLMRuntimeReconciler) pvcForVLLMRuntime(vllmRuntime *productionstackv1alpha1.VLLMRuntime) *corev1.PersistentVolumeClaim {
+	labels := map[string]string{
+		"app": vllmRuntime.Name,
+	}
+
+	pvc := &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      vllmRuntime.Name,
+			Namespace: vllmRuntime.Namespace,
+			Labels:    labels,
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes: []corev1.PersistentVolumeAccessMode{
+				corev1.PersistentVolumeAccessMode(vllmRuntime.Spec.DeploymentConfig.PVC.AccessMode),
+			},
+			Resources: corev1.VolumeResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: resource.MustParse(vllmRuntime.Spec.DeploymentConfig.PVC.Size),
+				},
+			},
+		},
+	}
+
+	if vllmRuntime.Spec.DeploymentConfig.PVC.StorageClassName != "" {
+		pvc.Spec.StorageClassName = &vllmRuntime.Spec.DeploymentConfig.PVC.StorageClassName
+	}
+
+	// Set the owner reference
+	ctrl.SetControllerReference(vllmRuntime, pvc, r.Scheme)
+	return pvc
+}
+
+// pvcNeedsUpdate checks if the PVC needs to be updated
+func (r *VLLMRuntimeReconciler) pvcNeedsUpdate(pvc *corev1.PersistentVolumeClaim, vr *productionstackv1alpha1.VLLMRuntime) bool {
+	// Compare storage size
+	expectedSize := resource.MustParse(vr.Spec.DeploymentConfig.PVC.Size)
+	actualSize := pvc.Spec.Resources.Requests[corev1.ResourceStorage]
+	if !expectedSize.Equal(actualSize) {
+		return true
+	}
+
+	// Compare access mode
+	expectedAccessMode := corev1.PersistentVolumeAccessMode(vr.Spec.DeploymentConfig.PVC.AccessMode)
+	actualAccessMode := pvc.Spec.AccessModes[0]
+	if expectedAccessMode != actualAccessMode {
+		return true
+	}
+
+	// Compare storage class name
+	expectedStorageClassName := vr.Spec.DeploymentConfig.PVC.StorageClassName
+	actualStorageClassName := ""
+	if pvc.Spec.StorageClassName != nil {
+		actualStorageClassName = *pvc.Spec.StorageClassName
+	}
+	if expectedStorageClassName != actualStorageClassName {
+		return true
+	}
+
+	return false
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *VLLMRuntimeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&productionstackv1alpha1.VLLMRuntime{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
+		Owns(&corev1.PersistentVolumeClaim{}).
 		Complete(r)
 }

@@ -51,6 +51,31 @@ spec:
                     - RollingUpdate
                     - Recreate
                     type: string
+                  hostPath:
+                    description: Host path configuration
+                    properties:
+                      mountPath:
+                        description: Mount path inside the container
+                        type: string
+                      path:
+                        description: Path on the host machine
+                        type: string
+                      type:
+                        default: Directory
+                        description: Type of the host path
+                        enum:
+                        - Directory
+                        - DirectoryOrCreate
+                        - File
+                        - FileOrCreate
+                        - Socket
+                        - CharDevice
+                        - BlockDevice
+                        type: string
+                    required:
+                    - mountPath
+                    - path
+                    type: object
                   image:
                     description: Image configuration
                     properties:
@@ -67,6 +92,25 @@ spec:
                     required:
                     - name
                     - registry
+                    type: object
+                  pvc:
+                    description: PVC configuration
+                    properties:
+                      accessMode:
+                        default: ReadWriteOnce
+                        description: Access mode for the PVC
+                        enum:
+                        - ReadWriteOnce
+                        - ReadOnlyMany
+                        - ReadWriteMany
+                        type: string
+                      size:
+                        default: 10Gi
+                        description: Storage size for the PVC
+                        type: string
+                      storageClassName:
+                        description: Storage class name for the PVC
+                        type: string
                     type: object
                   replicas:
                     default: 1
