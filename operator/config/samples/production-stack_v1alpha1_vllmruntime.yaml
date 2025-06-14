@@ -60,7 +60,7 @@ spec:
       pullSecretName: ""
 
     # Number of replicas
-    replicas: 2
+    replicas: 1
 
     # Deployment strategy
     deploymentStrategy: "Recreate"
