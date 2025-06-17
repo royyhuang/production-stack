@@ -44,6 +44,7 @@ spec:
                 description: EnableRouter determines if the router should be deployed
                 type: boolean
               engineScrapeInterval:
+                default: 30
                 description: EngineScrapeInterval for collecting engine statistics
                 format: int32
                 type: integer
@@ -173,6 +174,7 @@ spec:
                     type: array
                 type: object
               k8sLabelSelector:
+                default: app.kubernetes.io/part-of=production-stack
                 description: K8sLabelSelector specifies the label selector for vLLM
                   runtime pods when using k8s service discovery
                 type: string
@@ -264,6 +266,7 @@ spec:
                 format: int32
                 type: integer
               requestStatsWindow:
+                default: 60
                 description: RequestStatsWindow for request statistics
                 format: int32
                 type: integer
@@ -283,6 +286,9 @@ spec:
                 enum:
                 - roundrobin
                 - session
+                - kvaware
+                - prefixaware
+                - disaggregated_prefill
                 type: string
               serviceAccountName:
                 description: ServiceAccountName for the router pod

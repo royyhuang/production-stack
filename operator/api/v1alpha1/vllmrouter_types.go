@@ -41,6 +41,7 @@ type VLLMRouterSpec struct {
 
 	// K8sLabelSelector specifies the label selector for vLLM runtime pods when using k8s service discovery
 	// +kubebuilder:validation:RequiredWhen=ServiceDiscovery=k8s
+	// +kubebuilder:default="app.kubernetes.io/part-of=production-stack,app.kubernetes.io/component=serving-engine"
 	K8sLabelSelector string `json:"k8sLabelSelector,omitempty"`
 
 	// StaticBackends is required when using static service discovery
@@ -52,7 +53,7 @@ type VLLMRouterSpec struct {
 	StaticModels string `json:"staticModels,omitempty"`
 
 	// RoutingLogic specifies the routing strategy
-	// +kubebuilder:validation:Enum=roundrobin;session
+	// +kubebuilder:validation:Enum=roundrobin;session;kvaware;prefixaware;disaggregated_prefill
 	// +kubebuilder:default=roundrobin
 	RoutingLogic string `json:"routingLogic,omitempty"`
 
@@ -62,9 +63,11 @@ type VLLMRouterSpec struct {
 	SessionKey string `json:"sessionKey,omitempty"`
 
 	// EngineScrapeInterval for collecting engine statistics
+	// +kubebuilder:default=30
 	EngineScrapeInterval int32 `json:"engineScrapeInterval,omitempty"`
 
 	// RequestStatsWindow for request statistics
+	// +kubebuilder:default=60
 	RequestStatsWindow int32 `json:"requestStatsWindow,omitempty"`
 
 	// ExtraArgs for additional router arguments

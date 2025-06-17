@@ -16,7 +16,7 @@ spec:
   serviceDiscovery: k8s
 
   # Label selector for vLLM runtime pods
-  k8sLabelSelector: "app=vllmruntime-sample"
+  k8sLabelSelector: "app.kubernetes.io/part-of=production-stack,app.kubernetes.io/component=serving-engine"
 
   # Routing strategy (roundrobin or session)
   routingLogic: roundrobin

@@ -4,11 +4,11 @@ metadata:
   labels:
     app.kubernetes.io/name: production-stack
     app.kubernetes.io/managed-by: kustomize
-  name: vllmruntime-sample
+  name: vllmruntime-sample-1
 spec:
   # Model configuration
   model:
-    modelURL: "meta-llama/Llama-3.1-8B-Instruct"
+    modelURL: "meta-llama/Llama-3.2-1B-Instruct"
     enableLoRA: false
     enableTool: false
     toolCallParser: ""

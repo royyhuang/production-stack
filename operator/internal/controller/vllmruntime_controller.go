@@ -187,7 +187,9 @@ func (r *VLLMRuntimeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 // deploymentForVLLMRuntime returns a VLLMRuntime Deployment object
 func (r *VLLMRuntimeReconciler) deploymentForVLLMRuntime(vllmRuntime *productionstackv1alpha1.VLLMRuntime) *appsv1.Deployment {
 	labels := map[string]string{
-		"app": vllmRuntime.Name,
+		"app.kubernetes.io/name":      vllmRuntime.Name,
+		"app.kubernetes.io/part-of":   "production-stack",
+		"app.kubernetes.io/component": "serving-engine",
 	}
 
 	// Define probes
@@ -676,12 +678,16 @@ func (r *VLLMRuntimeReconciler) updateStatus(ctx context.Context, vr *production
 // serviceForVLLMRuntime returns a VLLMRuntime Service object
 func (r *VLLMRuntimeReconciler) serviceForVLLMRuntime(vllmRuntime *productionstackv1alpha1.VLLMRuntime) *corev1.Service {
 	labels := map[string]string{
-		"app":         vllmRuntime.Name,
-		"environment": "grafana-monitoring",
+		"app.kubernetes.io/name":      vllmRuntime.Name,
+		"app.kubernetes.io/part-of":   "production-stack",
+		"app.kubernetes.io/component": "serving-engine",
+		"environment":                 "grafana-monitoring",
 	}
 
 	selector := map[string]string{
-		"app": vllmRuntime.Name,
+		"app.kubernetes.io/name":      vllmRuntime.Name,
+		"app.kubernetes.io/part-of":   "production-stack",
+		"app.kubernetes.io/component": "serving-engine",
 	}
 
 	svc := &corev1.Service{
